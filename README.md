@@ -46,7 +46,7 @@
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/hirepulse.git
+   git clone https://github.com/YOUR_USERNAME/hirehub.git
    ```
 2. Install dependencies:
    ```bash
