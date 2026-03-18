@@ -16,6 +16,7 @@ AI Profile Auto-fill: Simulated AI-powered resume scanning to instantly fill in 
 👤 Profile & Portfolio Management
 Avatar Customization: Support for custom image uploads and professional initials-based fallback avatars.
 Resume Hosting: Centralized storage for candidate resumes and cover letters.
+
 🛠️ Tech Stack
 Frontend: React + Vite
 Styling: Tailwind CSS + shadcn/ui
