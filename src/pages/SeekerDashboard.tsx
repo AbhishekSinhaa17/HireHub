@@ -30,7 +30,7 @@ export default function SeekerDashboard() {
   const [loading, setLoading] = useState(true);
   const [statsModal, setStatsModal] = useState<string | null>(null);
   const [selectedApplication, setSelectedApplication] = useState<any | null>(
-    null
+    null,
   );
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export default function SeekerDashboard() {
   const stats = {
     total: applications.length,
     active: applications.filter(
-      (a) => !["hired", "rejected"].includes(a.status)
+      (a) => !["hired", "rejected"].includes(a.status),
     ).length,
     hired: applications.filter((a) => a.status === "hired").length,
     rejected: applications.filter((a) => a.status === "rejected").length,
@@ -63,7 +63,7 @@ export default function SeekerDashboard() {
     if (statsModal === "all") return applications;
     if (statsModal === "active")
       return applications.filter(
-        (a) => !["hired", "rejected"].includes(a.status)
+        (a) => !["hired", "rejected"].includes(a.status),
       );
     if (statsModal === "hired")
       return applications.filter((a) => a.status === "hired");
@@ -162,10 +162,7 @@ export default function SeekerDashboard() {
             >
               {/* Circular progress */}
               <div className="relative w-14 h-14">
-                <svg
-                  className="w-14 h-14 -rotate-90"
-                  viewBox="0 0 56 56"
-                >
+                <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
                   <circle
                     cx="28"
                     cy="28"
@@ -184,8 +181,9 @@ export default function SeekerDashboard() {
                     strokeWidth="4"
                     strokeLinecap="round"
                     strokeDasharray={`${2 * Math.PI * 22}`}
-                    strokeDashoffset={`${2 * Math.PI * 22 * (1 - successRate / 100)
-                      }`}
+                    strokeDashoffset={`${
+                      2 * Math.PI * 22 * (1 - successRate / 100)
+                    }`}
                     className="transition-all duration-1000"
                   />
                   <defs>
@@ -224,7 +222,6 @@ export default function SeekerDashboard() {
       </div>
 
       <div className="container mx-auto px-4 py-8 space-y-8">
-
         {/* Stats Cards */}
         <motion.div
           className="grid gap-4 grid-cols-2 lg:grid-cols-4"
@@ -384,7 +381,7 @@ export default function SeekerDashboard() {
                                 day: "numeric",
                                 month: "short",
                                 year: "numeric",
-                              }
+                              },
                             )}
                           </span>
                         </div>
@@ -416,9 +413,7 @@ export default function SeekerDashboard() {
             <DialogHeader className="relative z-10">
               <div className="flex items-center gap-3 mb-2">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary/20 to-violet-500/20 border border-border flex items-center justify-center text-primary font-bold text-sm">
-                  {(
-                    selectedApplication?.jobs?.companies?.name || "?"
-                  )
+                  {(selectedApplication?.jobs?.companies?.name || "?")
                     .charAt(0)
                     .toUpperCase()}
                 </div>
@@ -453,7 +448,7 @@ export default function SeekerDashboard() {
                   </p>
                   <p className="font-semibold text-sm">
                     {new Date(
-                      selectedApplication.created_at
+                      selectedApplication.created_at,
                     ).toLocaleDateString("en-IN", {
                       day: "numeric",
                       month: "short",
@@ -485,13 +480,12 @@ export default function SeekerDashboard() {
                         "hired",
                       ];
                       const currentIndex = statusOrder.indexOf(
-                        selectedApplication.status
+                        selectedApplication.status,
                       );
                       const stepIndex = statusOrder.indexOf(step);
                       const isRejected =
                         selectedApplication.status === "rejected";
-                      const isActive =
-                        !isRejected && stepIndex <= currentIndex;
+                      const isActive = !isRejected && stepIndex <= currentIndex;
 
                       return (
                         <div
@@ -500,20 +494,19 @@ export default function SeekerDashboard() {
                         >
                           <div className="flex flex-col items-center gap-1">
                             <div
-                              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-[10px] font-bold transition-colors ${isRejected && step === "applied"
+                              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-[10px] font-bold transition-colors ${
+                                isRejected && step === "applied"
                                   ? "border-rose-500 bg-rose-500 text-white"
                                   : isActive
                                     ? "border-primary bg-primary text-primary-foreground"
                                     : "border-border bg-background text-muted-foreground"
-                                }`}
+                              }`}
                             >
-                              {isRejected && step === "applied" ? (
-                                "✕"
-                              ) : isActive ? (
-                                "✓"
-                              ) : (
-                                i + 1
-                              )}
+                              {isRejected && step === "applied"
+                                ? "✕"
+                                : isActive
+                                  ? "✓"
+                                  : i + 1}
                             </div>
                             <span className="text-[9px] text-muted-foreground capitalize whitespace-nowrap">
                               {step}
@@ -521,15 +514,16 @@ export default function SeekerDashboard() {
                           </div>
                           {i < arr.length - 1 && (
                             <div
-                              className={`flex-1 h-0.5 mb-4 mx-1 transition-colors ${!isRejected && stepIndex < currentIndex
+                              className={`flex-1 h-0.5 mb-4 mx-1 transition-colors ${
+                                !isRejected && stepIndex < currentIndex
                                   ? "bg-primary"
                                   : "bg-border"
-                                }`}
+                              }`}
                             />
                           )}
                         </div>
                       );
-                    }
+                    },
                   )}
                 </div>
               </div>
@@ -587,9 +581,7 @@ export default function SeekerDashboard() {
                         .toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-semibold text-sm">
-                        {app.jobs?.title}
-                      </p>
+                      <p className="font-semibold text-sm">{app.jobs?.title}</p>
                       <p className="text-xs text-muted-foreground">
                         {app.jobs?.companies?.name}
                       </p>

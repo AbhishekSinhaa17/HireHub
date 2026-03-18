@@ -20,14 +20,20 @@ interface Job {
   companies: { name: string } | null;
 }
 
-const JOB_TYPES = ["full-time", "part-time", "contract", "remote", "internship"];
+const JOB_TYPES = [
+  "full-time",
+  "part-time",
+  "contract",
+  "remote",
+  "internship",
+];
 
 const TYPE_LABELS: Record<string, string> = {
   "full-time": "Full Time",
   "part-time": "Part Time",
-  "contract":  "Contract",
-  "remote":    "Remote",
-  "internship":"Internship",
+  contract: "Contract",
+  remote: "Remote",
+  internship: "Internship",
 };
 
 export default function Jobs() {
@@ -42,7 +48,9 @@ export default function Jobs() {
     const fetchJobs = async () => {
       const { data } = await supabase
         .from("jobs")
-        .select("id, title, location, job_type, salary_min, salary_max, skills_required, applicant_count, created_at, companies(name)")
+        .select(
+          "id, title, location, job_type, salary_min, salary_max, skills_required, applicant_count, created_at, companies(name)",
+        )
         .eq("is_active", true)
         .order("created_at", { ascending: false });
       setJobs((data as any) || []);
@@ -53,11 +61,13 @@ export default function Jobs() {
 
   const filtered = useMemo(() => {
     return jobs.filter((job) => {
-      const matchSearch = !search ||
+      const matchSearch =
+        !search ||
         job.title.toLowerCase().includes(search.toLowerCase()) ||
         job.companies?.name?.toLowerCase().includes(search.toLowerCase());
       const matchType = typeFilter === "all" || job.job_type === typeFilter;
-      const matchLocation = !locationFilter ||
+      const matchLocation =
+        !locationFilter ||
         job.location?.toLowerCase().includes(locationFilter.toLowerCase());
       return matchSearch && matchType && matchLocation;
     });
@@ -86,7 +96,8 @@ export default function Jobs() {
             Find Your Next Role
           </h1>
           <p className="text-muted-foreground text-lg max-w-md mx-auto mb-8">
-            Explore opportunities across companies and industries — your next career move starts here.
+            Explore opportunities across companies and industries — your next
+            career move starts here.
           </p>
 
           {/* Main search bar */}
@@ -114,7 +125,6 @@ export default function Jobs() {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-
         {/* Job type filter pills */}
         <div className="flex items-center gap-2 flex-wrap mb-6">
           <button
@@ -163,7 +173,10 @@ export default function Jobs() {
         {loading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="rounded-2xl border border-border bg-card p-5 animate-pulse">
+              <div
+                key={i}
+                className="rounded-2xl border border-border bg-card p-5 animate-pulse"
+              >
                 <div className="flex gap-3 mb-4">
                   <div className="w-11 h-11 rounded-xl bg-muted" />
                   <div className="flex-1 space-y-2">
@@ -189,8 +202,13 @@ export default function Jobs() {
               <Search className="h-7 w-7 text-muted-foreground" />
             </div>
             <p className="text-lg font-semibold">No jobs found</p>
-            <p className="text-sm text-muted-foreground mt-1 mb-4">Try adjusting your search or filters</p>
-            <button onClick={clearFilters} className="text-sm text-primary hover:underline font-medium">
+            <p className="text-sm text-muted-foreground mt-1 mb-4">
+              Try adjusting your search or filters
+            </p>
+            <button
+              onClick={clearFilters}
+              className="text-sm text-primary hover:underline font-medium"
+            >
               Clear all filters
             </button>
           </div>
