@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -55,10 +55,20 @@ import {
   Loader2,
   ArrowRight,
   MessageSquare,
+  Bot,
+  Send,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import emailjs from "@emailjs/browser";
+import {
+  calculateATSScore,
+  getScoreColor,
+  getScoreBg,
+  getScoreLabel,
+  type ATSResult,
+} from "@/lib/atsScorer";
 
 /* ═══════════════════════════════════════════════════════════════
    KANBAN PIPELINE — Types & Config
@@ -68,13 +78,16 @@ interface Application {
   status: string;
   created_at: string;
   cover_letter?: string;
+  notes?: string | null;
   profiles?: {
     full_name?: string;
     email?: string;
     skills?: string[];
     resume_url?: string;
     user_id?: string;
+    bio?: string;
   } | null;
+  atsResult?: ATSResult & { ats_notified?: boolean };
 }
 
 const COLUMNS = [
@@ -147,7 +160,12 @@ type ColumnKey = (typeof COLUMNS)[number]["key"];
 ═══════════════════════════════════════════════════════════════ */
 function getInitials(name?: string) {
   if (!name) return "?";
-  return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 }
 
 function timeAgo(dateStr: string) {
@@ -176,6 +194,131 @@ function avatarGradient(name = "") {
 /* ═══════════════════════════════════════════════════════════════
    KANBAN — Application Card
 ═══════════════════════════════════════════════════════════════ */
+/* ── ATS Score Badge ── */
+function ATSBadge({ result }: { result: ATSResult }) {
+  const [showDetail, setShowDetail] = useState(false);
+  return (
+    <div className="relative">
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowDetail((p) => !p);
+        }}
+        className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${getScoreBg(result.score)} ${getScoreColor(result.score)} transition-all`}
+        title="ATS Score — click for details"
+      >
+        <Bot className="h-2.5 w-2.5" />
+        {result.score}
+      </motion.button>
+
+      <AnimatePresence>
+        {showDetail && (
+          <motion.div
+            initial={{ opacity: 0, y: 4, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="absolute right-0 top-7 z-50 w-52 rounded-2xl border border-border bg-background/95 backdrop-blur-xl shadow-2xl p-3 space-y-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                ATS Score
+              </span>
+              <span
+                className={`text-xs font-bold ${getScoreColor(result.score)}`}
+              >
+                {getScoreLabel(result.score)}
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {(
+                [
+                  {
+                    label: "Skills",
+                    val: result.breakdown.skillsScore,
+                    max: 60,
+                  },
+                  {
+                    label: "Profile",
+                    val: result.breakdown.profileScore,
+                    max: 25,
+                  },
+                  {
+                    label: "Content",
+                    val: result.breakdown.contentScore,
+                    max: 15,
+                  },
+                ] as const
+              ).map(({ label, val, max }) => (
+                <div key={label}>
+                  <div className="flex justify-between text-[10px] mb-0.5">
+                    <span className="text-muted-foreground">{label}</span>
+                    <span className="font-semibold">
+                      {val}/{max}
+                    </span>
+                  </div>
+                  <div className="h-1 bg-muted rounded-full overflow-hidden">
+                    <motion.div
+                      className={`h-full rounded-full ${getScoreBg(result.score).split(" ")[0].replace("bg-", "bg-").replace("/15", "")}`}
+                      style={{
+                        background:
+                          result.score >= 70
+                            ? "#10b981"
+                            : result.score >= 50
+                              ? "#f59e0b"
+                              : "#ef4444",
+                      }}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(val / max) * 100}%` }}
+                      transition={{ duration: 0.5 }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            {result.matchedSkills.length > 0 && (
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-wider text-emerald-500 mb-1">
+                  Matched Skills
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {result.matchedSkills.map((s) => (
+                    <span
+                      key={s}
+                      className="text-[9px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-1.5 py-0.5 rounded-full font-semibold"
+                    >
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {result.missingSkills.length > 0 && (
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-wider text-red-500 mb-1">
+                  Missing Skills
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {result.missingSkills.map((s) => (
+                    <span
+                      key={s}
+                      className="text-[9px] bg-red-500/10 text-red-500 border border-red-500/20 px-1.5 py-0.5 rounded-full font-semibold"
+                    >
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function ApplicationCard({
   app,
   col,
@@ -191,12 +334,16 @@ function ApplicationCard({
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  
+
   const name = app.profiles?.full_name || "Unknown Applicant";
-  
+
   const handleMessageApplicant = async () => {
     if (!user || !app.profiles?.user_id) {
-      toast({ title: "Error", description: "Could not find applicant details", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Could not find applicant details",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -213,14 +360,16 @@ function ApplicationCard({
     }
 
     // Create new conversation
-    const { error } = await supabase
-      .from("conversations")
-      .insert({
-        participant_ids: [user.id, app.profiles.user_id]
-      });
+    const { error } = await supabase.from("conversations").insert({
+      participant_ids: [user.id, app.profiles.user_id],
+    });
 
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
       return;
     }
 
@@ -332,8 +481,8 @@ function ApplicationCard({
                     setExpanded((p) => !p);
                   }}
                   className={`h-7 w-7 rounded-lg flex items-center justify-center transition-all shadow-sm border ${
-                    expanded 
-                      ? "text-white bg-primary border-primary" 
+                    expanded
+                      ? "text-white bg-primary border-primary"
                       : "text-violet-500 bg-violet-500/10 hover:bg-violet-500/20 border-violet-500/20"
                   }`}
                   title="View Cover Letter"
@@ -360,7 +509,7 @@ function ApplicationCard({
                   </div>
                   <DropdownMenuSeparator className="bg-white/8" />
                   {COLUMNS.filter(
-                    (c) => c.key !== col.key && nextStatuses.includes(c.key)
+                    (c) => c.key !== col.key && nextStatuses.includes(c.key),
                   ).map((c) => (
                     <DropdownMenuItem
                       key={c.key}
@@ -396,13 +545,14 @@ function ApplicationCard({
             </div>
           )}
 
-          {/* Timestamp only */}
-          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-            <Clock className="h-3 w-3" />
-            {timeAgo(app.created_at)}
+          {/* Timestamp + ATS Score */}
+          <div className="flex items-center justify-between gap-1">
+            <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              {timeAgo(app.created_at)}
+            </div>
+            {app.atsResult && <ATSBadge result={app.atsResult} />}
           </div>
-
-
 
           {/* Cover letter */}
           <AnimatePresence>
@@ -481,7 +631,9 @@ function PipelineColumn({
           </div>
           <span className="text-xs font-bold text-foreground">{col.label}</span>
         </div>
-        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${col.countBg}`}>
+        <span
+          className={`text-xs font-bold px-2 py-0.5 rounded-full ${col.countBg}`}
+        >
           {apps.length}
         </span>
       </div>
@@ -492,7 +644,11 @@ function PipelineColumn({
           className={`absolute inset-y-0 left-0 bg-gradient-to-r ${col.gradient} rounded-full`}
           initial={{ width: 0 }}
           animate={{ width: apps.length > 0 ? "100%" : "0%" }}
-          transition={{ delay: colIndex * 0.1 + 0.3, duration: 0.6, ease: "easeOut" }}
+          transition={{
+            delay: colIndex * 0.1 + 0.3,
+            duration: 0.6,
+            ease: "easeOut",
+          }}
           style={{ opacity: 0.6 }}
         />
       </div>
@@ -550,7 +706,9 @@ function SummaryBar({ applications }: { applications: Application[] }) {
     >
       <div className="flex items-center gap-1.5">
         <TrendingUp className="h-3.5 w-3.5 text-primary" />
-        <span className="text-xs font-semibold text-foreground">{total} total</span>
+        <span className="text-xs font-semibold text-foreground">
+          {total} total
+        </span>
       </div>
 
       {/* Segmented bar */}
@@ -666,7 +824,9 @@ function PipelineLoadingState() {
         </motion.div>
       </div>
       <div>
-        <p className="text-sm font-semibold text-foreground">Loading pipeline</p>
+        <p className="text-sm font-semibold text-foreground">
+          Loading pipeline
+        </p>
         <div className="flex gap-1 mt-1.5">
           {[0, 1, 2].map((i) => (
             <motion.div
@@ -816,7 +976,7 @@ export default function RecruiterDashboard() {
             id: p.user_id,
             full_name: p.full_name || "Unknown",
             email: p.email || "",
-          }))
+          })),
         );
       } else {
         setAllApplicants([]);
@@ -828,10 +988,15 @@ export default function RecruiterDashboard() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, [user]);
+  useEffect(() => {
+    fetchData();
+  }, [user]);
 
   useEffect(() => {
-    if (!selectedJob || !user) { setApplications([]); return; }
+    if (!selectedJob || !user) {
+      setApplications([]);
+      return;
+    }
     const fetchApps = async () => {
       setAppsLoading(true);
       const { data: appData, error } = await supabase
@@ -840,23 +1005,44 @@ export default function RecruiterDashboard() {
         .eq("job_id", selectedJob)
         .order("created_at", { ascending: false });
 
-      if (error || !appData) { setApplications([]); setAppsLoading(false); return; }
+      if (error || !appData) {
+        setApplications([]);
+        setAppsLoading(false);
+        return;
+      }
 
       if (appData.length > 0) {
         const applicantIds = appData.map((a) => a.applicant_id);
         const { data: profileData } = await supabase
           .from("profiles")
-          .select("user_id, full_name, email, skills, resume_url")
+          .select("user_id, full_name, email, skills, resume_url, bio")
           .in("user_id", applicantIds);
 
         const profileMap: Record<string, any> = {};
-        (profileData || []).forEach((p) => { profileMap[p.user_id] = p; });
+        (profileData || []).forEach((p) => {
+          profileMap[p.user_id] = p;
+        });
 
         setApplications(
-          appData.map((app) => ({
-            ...app,
-            profiles: profileMap[app.applicant_id] ?? null,
-          }))
+          appData.map((app) => {
+            let existingAts: any = null;
+            if (app.notes) {
+              try {
+                const parsed = JSON.parse(app.notes);
+                if (parsed && typeof parsed.score === "number") {
+                  existingAts = parsed;
+                }
+              } catch (e) {
+                // Not a JSON or invalid result
+              }
+            }
+
+            return {
+              ...app,
+              profiles: profileMap[app.applicant_id] ?? null,
+              atsResult: existingAts,
+            };
+          }),
         );
       } else {
         setApplications([]);
@@ -873,12 +1059,23 @@ export default function RecruiterDashboard() {
       .from("companies")
       .insert({ ...companyForm, owner_id: user.id });
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
       return;
     }
     toast({ title: "Company created!" });
     setShowCompanyDialog(false);
-    setCompanyForm({ name: "", description: "", location: "", industry: "", size: "", website: "" });
+    setCompanyForm({
+      name: "",
+      description: "",
+      location: "",
+      industry: "",
+      size: "",
+      website: "",
+    });
     fetchData();
   };
 
@@ -901,7 +1098,10 @@ export default function RecruiterDashboard() {
 
     let error;
     if (editingJobId) {
-      const res = await supabase.from("jobs").update(jobData).eq("id", editingJobId);
+      const res = await supabase
+        .from("jobs")
+        .update(jobData)
+        .eq("id", editingJobId);
       error = res.error;
     } else {
       const res = await supabase.from("jobs").insert(jobData);
@@ -909,31 +1109,163 @@ export default function RecruiterDashboard() {
     }
 
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
       return;
     }
     toast({ title: editingJobId ? "Job updated!" : "Job posted!" });
     setEditingJobId(null);
     setShowJobDialog(false);
     setJobForm({
-      title: "", description: "", company_id: "", location: "",
-      job_type: "full-time", experience_level: "", salary_min: "", salary_max: "", skills: "",
+      title: "",
+      description: "",
+      company_id: "",
+      location: "",
+      job_type: "full-time",
+      experience_level: "",
+      salary_min: "",
+      salary_max: "",
+      skills: "",
     });
     fetchData();
   };
 
+  const [atsScanLoading, setAtsScanLoading] = useState(false);
+
   const updateStatus = async (appId: string, status: string) => {
-    await supabase.from("applications").update({ status: status as any }).eq("id", appId);
+    await supabase
+      .from("applications")
+      .update({ status: status as any })
+      .eq("id", appId);
     setApplications((prev) =>
-      prev.map((a) => (a.id === appId ? { ...a, status } : a))
+      prev.map((a) => (a.id === appId ? { ...a, status } : a)),
     );
     toast({ title: `Status updated to ${status}` });
+  };
+
+  const runAtsScan = async () => {
+    if (!selectedJob || applications.length === 0) return;
+    setAtsScanLoading(true);
+
+    const job = jobs.find((j) => j.id === selectedJob);
+    const jobSkills: string[] = job?.skills_required ?? [];
+    const jobTitle: string = job?.title ?? "";
+    const jobDescription: string = job?.description ?? "";
+
+    // Calculate ATS scores (only for those who don't have one or if we are refreshing)
+    const scored = applications.map((app) => {
+      // If we already have a result and it's from this job's current criteria, we could skip.
+      // For now, let's always re-calculate but keep the 'notified' flag.
+      const newResult = calculateATSScore({
+        jobSkills,
+        jobTitle,
+        jobDescription,
+        candidateSkills: app.profiles?.skills ?? [],
+        coverLetter: app.cover_letter,
+        hasResume: !!app.profiles?.resume_url,
+        bio: (app.profiles as any)?.bio,
+      });
+
+      return {
+        ...app,
+        atsResult: {
+          ...newResult,
+          ats_notified: app.atsResult?.ats_notified || false,
+        },
+      };
+    });
+    setApplications(scored);
+
+    // Send emails for candidates above threshold who haven't been notified
+    const threshold = 70;
+    const toNotify = scored.filter(
+      (a) =>
+        (a.atsResult?.score ?? 0) >= threshold && !a.atsResult?.ats_notified,
+    );
+
+    const serviceId =
+      import.meta.env.VITE_EMAILJS_SERVICE_ID || "service_82f77iv";
+    const templateId =
+      import.meta.env.VITE_EMAILJS_TEMPLATE_ID || "template_lh45fgi";
+    const publicKey =
+      import.meta.env.VITE_EMAILJS_PUBLIC_KEY || "Fpn8wAL-SgnUSeYgo";
+    const hrEmail = user?.email ?? "";
+
+    const isEmailJSConfigured =
+      serviceId &&
+      serviceId !== "YOUR_SERVICE_ID" &&
+      templateId &&
+      templateId !== "YOUR_TEMPLATE_ID" &&
+      publicKey &&
+      publicKey !== "YOUR_PUBLIC_KEY";
+
+    if (isEmailJSConfigured && toNotify.length > 0) {
+      let sent = 0;
+      for (const app of toNotify) {
+        try {
+          await emailjs.send(
+            serviceId,
+            templateId,
+            {
+              to_email: hrEmail,
+              candidate_name: app.profiles?.full_name ?? "Unknown",
+              candidate_email: app.profiles?.email ?? "",
+              ats_score: app.atsResult?.score ?? 0,
+              resume_link: app.profiles?.resume_url ?? "Not provided",
+              job_title: jobTitle,
+            },
+            publicKey,
+          );
+          app.atsResult!.ats_notified = true;
+          sent++;
+        } catch (err) {
+          console.error("EmailJS error:", err);
+        }
+      }
+      toast({
+        title: `ATS Scan Complete ✓`,
+        description: `${scored.length} candidates scored. ${sent} new resume${sent !== 1 ? "s" : ""} emailed to HR (score ≥ ${threshold}).`,
+      });
+    } else if (!isEmailJSConfigured && toNotify.length > 0) {
+      toast({
+        title: `ATS Scan Complete ✓`,
+        description: `${scored.length} candidates scored. ${toNotify.length} new candidates score ≥ ${threshold}. Configure EmailJS in .env to auto-email HR.`,
+      });
+    } else {
+      const alreadyNotified = scored.filter(
+        (a) => (a.atsResult?.score ?? 0) >= threshold && a.atsResult?.ats_notified,
+      ).length;
+
+      toast({
+        title: `ATS Scan Complete ✓`,
+        description: `${scored.length} candidates scored.${alreadyNotified > 0 ? ` ${alreadyNotified} already notified.` : ""} No new candidates scored ≥ ${threshold}.`,
+      });
+    }
+
+    // Save all results to Supabase (notes column)
+    for (const app of scored) {
+      if (app.atsResult) {
+        await supabase
+          .from("applications")
+          .update({ notes: JSON.stringify(app.atsResult) })
+          .eq("id", app.id);
+      }
+    }
+
+    setAtsScanLoading(false);
   };
 
   const deleteJob = async (jobId: string) => {
     const { error } = await supabase.from("jobs").delete().eq("id", jobId);
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
       return;
     }
     toast({ title: "Job deleted" });
@@ -1023,13 +1355,17 @@ export default function RecruiterDashboard() {
                 Hiring Command Center
               </h1>
               <p className="text-muted-foreground mt-1 text-sm">
-                Manage jobs, track applicants, and streamline your hiring pipeline.
+                Manage jobs, track applicants, and streamline your hiring
+                pipeline.
               </p>
             </div>
 
             <div className="flex items-center gap-3">
               {/* Add Company Dialog */}
-              <Dialog open={showCompanyDialog} onOpenChange={setShowCompanyDialog}>
+              <Dialog
+                open={showCompanyDialog}
+                onOpenChange={setShowCompanyDialog}
+              >
                 <DialogTrigger asChild>
                   <Button
                     variant="outline"
@@ -1054,11 +1390,36 @@ export default function RecruiterDashboard() {
                   </div>
                   <div className="p-6 space-y-4">
                     {[
-                      { label: "Company Name*", field: "name", placeholder: "Acme Corp", icon: Building2 },
-                      { label: "Industry", field: "industry", placeholder: "Technology", icon: Tag },
-                      { label: "Location", field: "location", placeholder: "Bangalore, India", icon: MapPin },
-                      { label: "Size", field: "size", placeholder: "50-200 employees", icon: Users },
-                      { label: "Website", field: "website", placeholder: "https://acme.com", icon: Globe },
+                      {
+                        label: "Company Name*",
+                        field: "name",
+                        placeholder: "Acme Corp",
+                        icon: Building2,
+                      },
+                      {
+                        label: "Industry",
+                        field: "industry",
+                        placeholder: "Technology",
+                        icon: Tag,
+                      },
+                      {
+                        label: "Location",
+                        field: "location",
+                        placeholder: "Bangalore, India",
+                        icon: MapPin,
+                      },
+                      {
+                        label: "Size",
+                        field: "size",
+                        placeholder: "50-200 employees",
+                        icon: Users,
+                      },
+                      {
+                        label: "Website",
+                        field: "website",
+                        placeholder: "https://acme.com",
+                        icon: Globe,
+                      },
                     ].map(({ label, field, placeholder, icon: Icon }) => (
                       <div key={field} className="space-y-1.5">
                         <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
@@ -1067,7 +1428,10 @@ export default function RecruiterDashboard() {
                         <Input
                           value={(companyForm as any)[field]}
                           onChange={(e) =>
-                            setCompanyForm({ ...companyForm, [field]: e.target.value })
+                            setCompanyForm({
+                              ...companyForm,
+                              [field]: e.target.value,
+                            })
                           }
                           placeholder={placeholder}
                           className="h-11 rounded-xl bg-muted/30 border-border focus:bg-background transition-colors"
@@ -1081,7 +1445,10 @@ export default function RecruiterDashboard() {
                       <Textarea
                         value={companyForm.description}
                         onChange={(e) =>
-                          setCompanyForm({ ...companyForm, description: e.target.value })
+                          setCompanyForm({
+                            ...companyForm,
+                            description: e.target.value,
+                          })
                         }
                         className="rounded-xl bg-muted/30 border-border focus:bg-background resize-none transition-colors"
                         rows={3}
@@ -1106,8 +1473,15 @@ export default function RecruiterDashboard() {
                   if (!open) {
                     setEditingJobId(null);
                     setJobForm({
-                      title: "", description: "", company_id: "", location: "",
-                      job_type: "full-time", experience_level: "", salary_min: "", salary_max: "", skills: "",
+                      title: "",
+                      description: "",
+                      company_id: "",
+                      location: "",
+                      job_type: "full-time",
+                      experience_level: "",
+                      salary_min: "",
+                      salary_max: "",
+                      skills: "",
                     });
                   }
                 }}
@@ -1140,14 +1514,18 @@ export default function RecruiterDashboard() {
                       </Label>
                       <Select
                         value={jobForm.company_id}
-                        onValueChange={(v) => setJobForm({ ...jobForm, company_id: v })}
+                        onValueChange={(v) =>
+                          setJobForm({ ...jobForm, company_id: v })
+                        }
                       >
                         <SelectTrigger className="h-11 rounded-xl bg-muted/30 border-border">
                           <SelectValue placeholder="Select company" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl">
                           {companies.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -1165,7 +1543,9 @@ export default function RecruiterDashboard() {
                       </Label>
                       <Input
                         value={jobForm.title}
-                        onChange={(e) => setJobForm({ ...jobForm, title: e.target.value })}
+                        onChange={(e) =>
+                          setJobForm({ ...jobForm, title: e.target.value })
+                        }
                         placeholder="Senior Frontend Engineer"
                         className="h-11 rounded-xl bg-muted/30 border-border focus:bg-background transition-colors"
                       />
@@ -1180,7 +1560,10 @@ export default function RecruiterDashboard() {
                         rows={4}
                         value={jobForm.description}
                         onChange={(e) =>
-                          setJobForm({ ...jobForm, description: e.target.value })
+                          setJobForm({
+                            ...jobForm,
+                            description: e.target.value,
+                          })
                         }
                         placeholder="Describe the role, responsibilities, and requirements..."
                         className="rounded-xl bg-muted/30 border-border focus:bg-background resize-none transition-colors"
@@ -1208,17 +1591,25 @@ export default function RecruiterDashboard() {
                         </Label>
                         <Select
                           value={jobForm.job_type}
-                          onValueChange={(v) => setJobForm({ ...jobForm, job_type: v })}
+                          onValueChange={(v) =>
+                            setJobForm({ ...jobForm, job_type: v })
+                          }
                         >
                           <SelectTrigger className="h-11 rounded-xl bg-muted/30 border-border">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="rounded-xl">
-                            {["full-time", "part-time", "contract", "remote", "internship"].map(
-                              (t) => (
-                                <SelectItem key={t} value={t}>{t}</SelectItem>
-                              )
-                            )}
+                            {[
+                              "full-time",
+                              "part-time",
+                              "contract",
+                              "remote",
+                              "internship",
+                            ].map((t) => (
+                              <SelectItem key={t} value={t}>
+                                {t}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -1234,7 +1625,10 @@ export default function RecruiterDashboard() {
                           type="number"
                           value={jobForm.salary_min}
                           onChange={(e) =>
-                            setJobForm({ ...jobForm, salary_min: e.target.value })
+                            setJobForm({
+                              ...jobForm,
+                              salary_min: e.target.value,
+                            })
                           }
                           placeholder="500000"
                           className="h-11 rounded-xl bg-muted/30 border-border focus:bg-background transition-colors"
@@ -1248,7 +1642,10 @@ export default function RecruiterDashboard() {
                           type="number"
                           value={jobForm.salary_max}
                           onChange={(e) =>
-                            setJobForm({ ...jobForm, salary_max: e.target.value })
+                            setJobForm({
+                              ...jobForm,
+                              salary_max: e.target.value,
+                            })
                           }
                           placeholder="1200000"
                           className="h-11 rounded-xl bg-muted/30 border-border focus:bg-background transition-colors"
@@ -1290,7 +1687,11 @@ export default function RecruiterDashboard() {
                     <Button
                       className="w-full h-12 rounded-xl font-semibold shadow-lg shadow-primary/20 mt-2"
                       onClick={createJob}
-                      disabled={!jobForm.title || !jobForm.description || !jobForm.company_id}
+                      disabled={
+                        !jobForm.title ||
+                        !jobForm.description ||
+                        !jobForm.company_id
+                      }
                     >
                       {editingJobId ? "Update Job" : "Post Job"}
                     </Button>
@@ -1304,7 +1705,6 @@ export default function RecruiterDashboard() {
 
       {/* ── Body ── */}
       <div className="container mx-auto px-4 py-8 space-y-8">
-
         {/* ── Stat Cards ── */}
         <motion.div
           className="grid gap-4 md:grid-cols-3"
@@ -1318,7 +1718,10 @@ export default function RecruiterDashboard() {
           {statCards.map((s) => (
             <motion.div
               key={s.key}
-              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                visible: { opacity: 1, y: 0 },
+              }}
               whileHover={{ y: -4, scale: 1.02 }}
               onClick={() => setStatsModal(s.key)}
               className={`group relative overflow-hidden rounded-2xl border border-border bg-card p-5 cursor-pointer transition-all duration-300 hover:shadow-xl ${s.border}`}
@@ -1338,8 +1741,12 @@ export default function RecruiterDashboard() {
                 <p className="text-3xl font-extrabold font-display text-foreground mb-0.5">
                   {s.value}
                 </p>
-                <p className="text-sm font-semibold text-foreground/80">{s.label}</p>
-                <p className="text-xs text-muted-foreground mt-1">{s.description}</p>
+                <p className="text-sm font-semibold text-foreground/80">
+                  {s.label}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {s.description}
+                </p>
                 <ArrowUpRight className="absolute top-0 right-0 h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-all duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </div>
             </motion.div>
@@ -1348,7 +1755,6 @@ export default function RecruiterDashboard() {
 
         {/* ── Main Grid ── */}
         <div className="grid gap-6 lg:grid-cols-2">
-
           {/* ── Jobs List ── */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -1362,7 +1768,9 @@ export default function RecruiterDashboard() {
                   <Briefcase className="h-4 w-4 text-white" />
                 </div>
                 <div>
-                  <h2 className="font-display font-bold text-base">Your Jobs</h2>
+                  <h2 className="font-display font-bold text-base">
+                    Your Jobs
+                  </h2>
                   <p className="text-xs text-muted-foreground">
                     {jobs.length} job{jobs.length !== 1 ? "s" : ""} posted
                   </p>
@@ -1377,7 +1785,9 @@ export default function RecruiterDashboard() {
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-3">
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                  <p className="text-sm text-muted-foreground">Loading jobs...</p>
+                  <p className="text-sm text-muted-foreground">
+                    Loading jobs...
+                  </p>
                 </div>
               ) : jobs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-4">
@@ -1434,7 +1844,9 @@ export default function RecruiterDashboard() {
                             </span>
                             {job.location && (
                               <>
-                                <span className="text-muted-foreground/40">·</span>
+                                <span className="text-muted-foreground/40">
+                                  ·
+                                </span>
                                 <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
                                   <MapPin className="h-2.5 w-2.5" />
                                   {job.location}
@@ -1496,14 +1908,35 @@ export default function RecruiterDashboard() {
                   </p>
                 </div>
               </div>
-              {selectedJob && (
-                <button
-                  onClick={() => setSelectedJob(null)}
-                  className="text-xs text-muted-foreground hover:text-foreground bg-background border border-border px-3 py-1.5 rounded-full transition-colors"
-                >
-                  Clear
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {selectedJob && applications.length > 0 && (
+                  <motion.button
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={runAtsScan}
+                    disabled={atsScanLoading}
+                    className="flex items-center gap-1.5 text-xs font-semibold bg-gradient-to-r from-violet-500 to-purple-600 text-white px-3 py-1.5 rounded-full shadow-md shadow-violet-500/20 hover:shadow-violet-500/40 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {atsScanLoading ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Bot className="h-3 w-3" />
+                    )}
+                    {atsScanLoading ? "Scanning..." : "Run ATS Scan"}
+                    {!atsScanLoading && (
+                      <Send className="h-2.5 w-2.5 opacity-70" />
+                    )}
+                  </motion.button>
+                )}
+                {selectedJob && (
+                  <button
+                    onClick={() => setSelectedJob(null)}
+                    className="text-xs text-muted-foreground hover:text-foreground bg-background border border-border px-3 py-1.5 rounded-full transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Pipeline */}
@@ -1522,7 +1955,10 @@ export default function RecruiterDashboard() {
       {/* ════════════════════════════════════════
           STATS MODAL
       ════════════════════════════════════════ */}
-      <Dialog open={statsModal !== null} onOpenChange={() => setStatsModal(null)}>
+      <Dialog
+        open={statsModal !== null}
+        onOpenChange={() => setStatsModal(null)}
+      >
         <DialogContent className="max-w-lg rounded-3xl border-border p-0 overflow-hidden">
           <div className="bg-gradient-to-br from-primary/10 to-transparent px-6 pt-6 pb-5 border-b border-border">
             <DialogHeader>
@@ -1591,8 +2027,12 @@ export default function RecruiterDashboard() {
                       {(person.full_name || "?").charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-semibold text-sm">{person.full_name}</p>
-                      <p className="text-xs text-muted-foreground">{person.email}</p>
+                      <p className="font-semibold text-sm">
+                        {person.full_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {person.email}
+                      </p>
                     </div>
                   </motion.div>
                 ))
@@ -1672,7 +2112,10 @@ export default function RecruiterDashboard() {
                     bg: "bg-blue-500/10",
                   },
                 ].map(({ label, value, icon: Icon, color, bg }) => (
-                  <div key={label} className="rounded-2xl border border-border bg-muted/30 p-3">
+                  <div
+                    key={label}
+                    className="rounded-2xl border border-border bg-muted/30 p-3"
+                  >
                     <div
                       className={`inline-flex h-7 w-7 items-center justify-center rounded-lg ${bg} mb-2`}
                     >
@@ -1692,8 +2135,8 @@ export default function RecruiterDashboard() {
                     Salary Range
                   </p>
                   <p className="font-bold text-base text-emerald-500">
-                    ₹{jobModal.salary_min?.toLocaleString()} —{" "}
-                    ₹{jobModal.salary_max?.toLocaleString()}
+                    ₹{jobModal.salary_min?.toLocaleString()} — ₹
+                    {jobModal.salary_max?.toLocaleString()}
                   </p>
                 </div>
               )}
