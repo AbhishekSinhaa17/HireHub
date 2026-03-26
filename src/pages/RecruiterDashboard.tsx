@@ -57,11 +57,14 @@ import {
   MessageSquare,
   Bot,
   Send,
+  ChevronDown,
+  X,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import emailjs from "@emailjs/browser";
+import { generateJobDescription } from "@/lib/jobDescriptionAI";
 import {
   calculateATSScore,
   getScoreColor,
@@ -919,6 +922,7 @@ export default function RecruiterDashboard() {
   const [statsModal, setStatsModal] = useState<string | null>(null);
   const [jobModal, setJobModal] = useState<any | null>(null);
   const [editingJobId, setEditingJobId] = useState<string | null>(null);
+  const [generatingDesc, setGeneratingDesc] = useState(false);
 
   const [jobForm, setJobForm] = useState({
     title: "",
@@ -1553,11 +1557,47 @@ export default function RecruiterDashboard() {
 
                     {/* Description */}
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                        <AlignLeft className="h-3.5 w-3.5" /> Description*
-                      </Label>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                          <AlignLeft className="h-3.5 w-3.5" /> Description*
+                        </Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+                          disabled={generatingDesc || !jobForm.title}
+                          onClick={async () => {
+                            if (!jobForm.title) return;
+                            setGeneratingDesc(true);
+                            try {
+                              const company = companies.find((c) => c.id === jobForm.company_id);
+                              const detail = await generateJobDescription({
+                                title: jobForm.title,
+                                company_name: company?.name || "",
+                                location: jobForm.location,
+                                job_type: jobForm.job_type,
+                                experience_level: jobForm.experience_level,
+                                skills: jobForm.skills,
+                              });
+                              setJobForm((prev) => ({ ...prev, description: detail }));
+                              toast({ title: "Description generated!", description: "Feel free to review and edit." });
+                            } catch (err: any) {
+                              toast({ title: "Generation failed", description: err.message, variant: "destructive" });
+                            } finally {
+                              setGeneratingDesc(false);
+                            }
+                          }}
+                        >
+                          {generatingDesc ? (
+                            <><Loader2 className="h-3 w-3 animate-spin" /> Generating...</>
+                          ) : (
+                            <><Sparkles className="h-3 w-3" /> Generate with AI</>
+                          )}
+                        </Button>
+                      </div>
                       <Textarea
-                        rows={4}
+                        rows={8}
                         value={jobForm.description}
                         onChange={(e) =>
                           setJobForm({
@@ -1565,7 +1605,8 @@ export default function RecruiterDashboard() {
                             description: e.target.value,
                           })
                         }
-                        placeholder="Describe the role, responsibilities, and requirements..."
+                        disabled={generatingDesc}
+                        placeholder={generatingDesc ? "AI is writing the job description..." : "Describe the role, responsibilities, and requirements..."}
                         className="rounded-xl bg-muted/30 border-border focus:bg-background resize-none transition-colors"
                       />
                     </div>

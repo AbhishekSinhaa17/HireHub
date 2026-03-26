@@ -6,20 +6,22 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { MapPin, Clock, Users, Building2, ArrowLeft, Send, MessageSquare } from "lucide-react";
+import { MapPin, Clock, Users, Building2, ArrowLeft, Send, MessageSquare, Sparkles, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
+import { generateCoverLetter } from "@/lib/coverLetterAI";
 
 export default function JobDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, role } = useAuth();
+  const { user, role, profile } = useAuth();
   const { toast } = useToast();
   const [job, setJob] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
   const [coverLetter, setCoverLetter] = useState("");
   const [hasApplied, setHasApplied] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     const fetchJob = async () => {
@@ -186,10 +188,51 @@ export default function JobDetail() {
                   <div className="space-y-4">
                     <h3 className="font-display font-semibold">Apply Now</h3>
                     <div>
-                      <label className="text-sm font-medium">Cover Letter (optional)</label>
-                      <Textarea className="mt-1" rows={5} placeholder="Why are you a great fit?" value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} />
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-sm font-medium">Cover Letter (optional)</label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+                          disabled={generating}
+                          onClick={async () => {
+                            if (!profile) {
+                              toast({ title: "Please complete your profile first", variant: "destructive" });
+                              return;
+                            }
+                            setGenerating(true);
+                            try {
+                              const letter = await generateCoverLetter(
+                                { full_name: profile.full_name, bio: profile.bio, skills: profile.skills },
+                                job,
+                              );
+                              setCoverLetter(letter);
+                              toast({ title: "Cover letter generated!", description: "Feel free to edit it before submitting." });
+                            } catch (err: any) {
+                              toast({ title: "Generation failed", description: err.message, variant: "destructive" });
+                            } finally {
+                              setGenerating(false);
+                            }
+                          }}
+                        >
+                          {generating ? (
+                            <><Loader2 className="h-3 w-3 animate-spin" /> Generating...</>
+                          ) : (
+                            <><Sparkles className="h-3 w-3" /> Generate with AI</>
+                          )}
+                        </Button>
+                      </div>
+                      <Textarea
+                        className="mt-1"
+                        rows={7}
+                        placeholder={generating ? "AI is writing your cover letter..." : "Why are you a great fit?"}
+                        value={coverLetter}
+                        onChange={(e) => setCoverLetter(e.target.value)}
+                        disabled={generating}
+                      />
                     </div>
-                    <Button className="w-full" onClick={handleApply} disabled={applying}>
+                    <Button className="w-full" onClick={handleApply} disabled={applying || generating}>
                       <Send className="mr-2 h-4 w-4" /> {applying ? "Submitting..." : "Submit Application"}
                     </Button>
                   </div>

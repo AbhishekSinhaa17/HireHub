@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   Camera,
 } from "lucide-react";
+import { parseResumeWithAI } from "@/lib/resumeParserAI";
 
 export default function Profile() {
   const { user, profile, role, refreshProfile } = useAuth();
@@ -168,7 +169,7 @@ export default function Profile() {
     setUploadingResume(false);
   };
 
-  const handleSimulateScan = async () => {
+  const handleAIScan = async () => {
     if (!profile?.resume_url) {
       toast({
         title: "No resume found",
@@ -180,25 +181,28 @@ export default function Profile() {
 
     setIsScanning(true);
     
-    // Simulate AI thinking time
-    await new Promise((resolve) => setTimeout(resolve, 2500));
+    try {
+      const parsedData = await parseResumeWithAI(profile.resume_url);
+      
+      setForm((prev) => ({
+        ...prev,
+        bio: parsedData.bio,
+        skills: parsedData.skills.join(", "),
+      }));
 
-    // Mock "Parsed" data
-    const mockSkills = ["React", "TypeScript", "Node.js", "UI/UX Design", "GraphQL"];
-    const mockBio = "Passionate Full-stack Developer with 3+ years of experience building modern web applications. Specialized in creating premium user experiences and scalable backends.";
-
-    setForm((prev) => ({
-      ...prev,
-      bio: mockBio,
-      skills: mockSkills.join(", "),
-    }));
-
-    toast({
-      title: "Scan Complete!",
-      description: "AI has successfully extracted your skills and bio from the resume.",
-    });
-
-    setIsScanning(false);
+      toast({
+        title: "Scan Complete!",
+        description: "AI has successfully extracted your skills and bio from the resume.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Scan Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   const handleAvatarUpload = async (e: any) => {
@@ -661,7 +665,7 @@ export default function Profile() {
                         variant="default"
                         size="sm"
                         className="w-full mt-2 rounded-xl bg-gradient-to-r from-primary to-violet-600 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all group"
-                        onClick={handleSimulateScan}
+                        onClick={handleAIScan}
                         disabled={isScanning}
                       >
                         {isScanning ? (
