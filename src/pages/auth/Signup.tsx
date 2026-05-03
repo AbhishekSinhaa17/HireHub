@@ -607,7 +607,7 @@ export default function Signup() {
               <MagneticButton className="w-full">
                 <Button
                   type="submit"
-                  className="w-full h-12 text-base font-semibold relative overflow-hidden group bg-gradient-to-r from-primary via-primary to-emerald-600 border-0 shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:shadow-xl transition-all duration-300"
+                  className="w-full h-12 text-base font-semibold relative overflow-hidden group bg-gradient-to-r from-primary via-primary to-emerald-600 border-0 shadow-lg shadow-primary/25 !hover:shadow-primary/40 !hover:shadow-xl !hover:brightness-110 active:scale-[0.98] transition-all duration-300 !text-white"
                   disabled={loading}
                 >
                   {/* Shimmer */}
@@ -675,7 +675,7 @@ export default function Signup() {
             <Button
               type="button"
               variant="outline"
-              className="w-full h-12 bg-background/50 border-border/60 hover:bg-muted/50 transition-all gap-3 font-semibold group relative overflow-hidden"
+              className="w-full h-12 bg-background border-border/60 !hover:bg-primary/5 !hover:border-primary/50 transition-all gap-3 font-semibold group relative overflow-hidden"
               onClick={signInWithGoogle}
               disabled={loading}
             >

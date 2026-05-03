@@ -106,7 +106,7 @@ export default function Navbar() {
           {role !== "recruiter" && (
             <Link
               to="/jobs"
-              className="px-3.5 py-2 text-sm font-medium text-muted-foreground transition-all duration-200 hover:text-foreground hover:bg-muted/60 rounded-lg"
+              className="px-3.5 py-2 text-sm font-medium text-muted-foreground transition-all duration-200 hover:text-primary hover:bg-primary/5 rounded-lg"
             >
               Browse Jobs
             </Link>
@@ -114,14 +114,14 @@ export default function Navbar() {
 
           <button
             onClick={() => scrollToSection("about")}
-            className="px-3.5 py-2 text-sm font-medium text-muted-foreground transition-all duration-200 hover:text-foreground hover:bg-muted/60 rounded-lg"
+            className="px-3.5 py-2 text-sm font-medium text-muted-foreground transition-all duration-200 hover:text-primary hover:bg-primary/5 rounded-lg"
           >
             About
           </button>
 
           <button
             onClick={() => scrollToSection("contact")}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-muted-foreground transition-all duration-200 hover:text-foreground hover:bg-muted/60 rounded-lg"
+            className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-muted-foreground transition-all duration-200 hover:text-primary hover:bg-primary/5 rounded-lg"
           >
             <Mail className="h-3.5 w-3.5" />
             Contact
@@ -167,7 +167,7 @@ export default function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                  className="text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors"
                 >
                   Sign In
                 </Button>
@@ -228,7 +228,7 @@ export default function Navbar() {
               {role !== "recruiter" && (
                 <Link
                   to="/jobs"
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2.5 rounded-xl hover:bg-muted/60"
+                  className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors px-3 py-2.5 rounded-xl hover:bg-primary/5"
                   onClick={() => setMobileOpen(false)}
                 >
                   Browse Jobs
@@ -237,14 +237,14 @@ export default function Navbar() {
 
               <button
                 onClick={() => scrollToSection("about")}
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2.5 rounded-xl hover:bg-muted/60 text-left"
+                className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors px-3 py-2.5 rounded-xl hover:bg-primary/5 text-left"
               >
                 About
               </button>
 
               <button
                 onClick={() => scrollToSection("contact")}
-                className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2.5 rounded-xl hover:bg-muted/60 text-left"
+                className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors px-3 py-2.5 rounded-xl hover:bg-primary/5 text-left"
               >
                 <Mail className="h-4 w-4" />
                 Contact
@@ -290,7 +290,7 @@ export default function Navbar() {
               ) : (
                 <div className="flex flex-col gap-2 pt-1 px-1">
                   <Link to="/auth/login" onClick={() => setMobileOpen(false)}>
-                    <Button variant="outline" size="sm" className="w-full rounded-xl">
+                    <Button variant="outline" size="sm" className="w-full rounded-xl hover:bg-primary/5 hover:text-primary transition-colors">
                       Sign In
                     </Button>
                   </Link>
