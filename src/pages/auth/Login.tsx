@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,14 @@ import {
   Sparkles,
   ArrowRight,
   Zap,
-  Star,
   TrendingUp,
-  Users,
   Building2,
   CheckCircle2,
+  Lock,
+  Mail,
+  Command,
+  Globe2,
+  Rocket,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -24,69 +27,89 @@ import {
   useMotionValue,
   useSpring,
   useTransform,
+  useMotionTemplate,
 } from "framer-motion";
 
 /* ─────────────────────────────────────────────────────────────
-   Floating Particle
+   Aurora Background — slow color-shifting gradient blobs
 ───────────────────────────────────────────────────────────── */
-function Particle({ index }: { index: number }) {
-  const size = Math.random() * 3 + 1;
-  const duration = Math.random() * 15 + 10;
-  const delay = Math.random() * 10;
-  const x = Math.random() * 100;
-  const colors = [
-    "bg-primary/40",
-    "bg-violet-400/40",
-    "bg-emerald-400/30",
-    "bg-cyan-400/30",
-    "bg-pink-400/20",
-  ];
-  const color = colors[index % colors.length];
-
-  return (
-    <motion.div
-      className={`absolute rounded-full ${color} blur-[1px]`}
-      style={{ width: size, height: size, left: `${x}%`, bottom: "-10px" }}
-      animate={{ y: [0, -(window.innerHeight + 100)], opacity: [0, 1, 1, 0] }}
-      transition={{ duration, delay, repeat: Infinity, ease: "linear" }}
-    />
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
-   Animated Grid Lines
-───────────────────────────────────────────────────────────── */
-function GridLines() {
+function Aurora() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {[...Array(6)].map((_, i) => (
-        <motion.div
-          key={`v-${i}`}
-          className="absolute top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-violet-500/10 to-transparent"
-          style={{ left: `${(i + 1) * (100 / 7)}%` }}
-          animate={{ opacity: [0.2, 0.7, 0.2] }}
-          transition={{ duration: 3 + i * 0.5, repeat: Infinity, delay: i * 0.4 }}
-        />
-      ))}
-      {[...Array(4)].map((_, i) => (
-        <motion.div
-          key={`h-${i}`}
-          className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/10 to-transparent"
-          style={{ top: `${(i + 1) * (100 / 5)}%` }}
-          animate={{ opacity: [0.2, 0.6, 0.2] }}
-          transition={{ duration: 4 + i * 0.7, repeat: Infinity, delay: i * 0.6 }}
-        />
-      ))}
+      <motion.div
+        className="absolute -top-40 -left-40 w-[55rem] h-[55rem] rounded-full opacity-40 dark:opacity-60 mix-blend-multiply dark:mix-blend-screen blur-3xl"
+        style={{
+          background:
+            "radial-gradient(circle at 30% 30%, #6366f1 0%, transparent 60%)",
+        }}
+        animate={{ x: [0, 80, -40, 0], y: [0, 60, -30, 0] }}
+        transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute -bottom-40 -right-40 w-[55rem] h-[55rem] rounded-full opacity-30 dark:opacity-50 mix-blend-multiply dark:mix-blend-screen blur-3xl"
+        style={{
+          background:
+            "radial-gradient(circle at 70% 70%, #a855f7 0%, transparent 60%)",
+        }}
+        animate={{ x: [0, -80, 40, 0], y: [0, -60, 30, 0] }}
+        transition={{ duration: 26, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute top-1/2 left-1/2 w-[40rem] h-[40rem] rounded-full opacity-20 dark:opacity-40 mix-blend-multiply dark:mix-blend-screen blur-3xl"
+        style={{
+          background:
+            "radial-gradient(circle, #06b6d4 0%, transparent 60%)",
+          x: "-50%",
+          y: "-50%",
+        }}
+        animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.4, 0.2] }}
+        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
+      />
     </div>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Magnetic Button
+   Noise Texture — adds film grain
 ───────────────────────────────────────────────────────────── */
-function MagneticButton({
+function NoiseOverlay() {
+  return (
+    <div
+      className="absolute inset-0 pointer-events-none opacity-[0.035] mix-blend-overlay z-[1]"
+      style={{
+        backgroundImage:
+          "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+      }}
+    />
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Animated dotted grid
+───────────────────────────────────────────────────────────── */
+function DotGrid() {
+  return (
+    <div
+      className="absolute inset-0 pointer-events-none opacity-[0.1] dark:opacity-[0.25]"
+      style={{
+        backgroundImage:
+          "radial-gradient(circle, currentColor 1px, transparent 1px)",
+        backgroundSize: "26px 26px",
+        maskImage:
+          "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+        WebkitMaskImage:
+          "radial-gradient(ellipse at center, black 30%, transparent 75%)",
+      }}
+    />
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   3D Tilt Card — uses pointer for perspective
+───────────────────────────────────────────────────────────── */
+function TiltCard({
   children,
-  className,
+  className = "",
 }: {
   children: React.ReactNode;
   className?: string;
@@ -94,23 +117,29 @@ function MagneticButton({
   const ref = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
-  const sx = useSpring(x, { stiffness: 200, damping: 20 });
-  const sy = useSpring(y, { stiffness: 200, damping: 20 });
+  const rotateX = useSpring(useTransform(y, [-0.5, 0.5], [8, -8]), {
+    stiffness: 200,
+    damping: 20,
+  });
+  const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [-8, 8]), {
+    stiffness: 200,
+    damping: 20,
+  });
 
   return (
     <motion.div
       ref={ref}
-      style={{ x: sx, y: sy }}
       onMouseMove={(e) => {
         if (!ref.current) return;
         const rect = ref.current.getBoundingClientRect();
-        x.set((e.clientX - rect.left - rect.width / 2) * 0.25);
-        y.set((e.clientY - rect.top - rect.height / 2) * 0.25);
+        x.set((e.clientX - rect.left) / rect.width - 0.5);
+        y.set((e.clientY - rect.top) / rect.height - 0.5);
       }}
       onMouseLeave={() => {
         x.set(0);
         y.set(0);
       }}
+      style={{ rotateX, rotateY, transformPerspective: 1000 }}
       className={className}
     >
       {children}
@@ -119,32 +148,47 @@ function MagneticButton({
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Glow Input
+   Spotlight Input — radial glow follows the cursor
 ───────────────────────────────────────────────────────────── */
-function GlowInput({
+function SpotlightField({
   children,
-  focused,
-  color = "primary",
+  active,
 }: {
   children: React.ReactNode;
-  focused: boolean;
-  color?: "primary" | "violet";
+  active: boolean;
 }) {
-  const gradient =
-    color === "violet"
-      ? "from-violet-500/50 via-primary/50 to-violet-500/50"
-      : "from-primary/50 via-violet-500/50 to-primary/50";
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const background = useMotionTemplate`radial-gradient(180px circle at ${x}px ${y}px, rgba(168,85,247,0.15), transparent 70%)`;
 
   return (
-    <div className="relative">
+    <div
+      ref={ref}
+      onMouseMove={(e) => {
+        if (!ref.current) return;
+        const r = ref.current.getBoundingClientRect();
+        x.set(e.clientX - r.left);
+        y.set(e.clientY - r.top);
+      }}
+      className="relative group rounded-xl"
+    >
+      <motion.div
+        className="pointer-events-none absolute -inset-px rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{ background }}
+      />
       <AnimatePresence>
-        {focused && (
+        {active && (
           <motion.div
-            className={`absolute -inset-0.5 rounded-lg bg-gradient-to-r ${gradient} blur-sm`}
+            className="absolute -inset-[1.5px] rounded-xl"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            style={{
+              background:
+                "conic-gradient(from var(--angle), #6366f1, #a855f7, #06b6d4, #6366f1)",
+            }}
           />
         )}
       </AnimatePresence>
@@ -154,226 +198,253 @@ function GlowInput({
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Orbiting Ring
+   Live Activity Ticker
 ───────────────────────────────────────────────────────────── */
-function OrbitingRing({
-  radius,
-  duration,
-  color,
-  dotSize = 6,
-  reverse = false,
-}: {
-  radius: number;
-  duration: number;
-  color: string;
-  dotSize?: number;
-  reverse?: boolean;
-}) {
-  return (
-    <motion.div
-      className="absolute inset-0 flex items-center justify-center pointer-events-none"
-      animate={{ rotate: reverse ? -360 : 360 }}
-      transition={{ duration, repeat: Infinity, ease: "linear" }}
-    >
-      <div
-        className="absolute rounded-full border border-dashed opacity-20"
-        style={{ width: radius * 2, height: radius * 2, borderColor: color }}
-      />
-      <div
-        className="absolute rounded-full"
-        style={{
-          width: dotSize,
-          height: dotSize,
-          background: color,
-          top: `calc(50% - ${radius}px)`,
-          boxShadow: `0 0 12px ${color}, 0 0 4px ${color}`,
-        }}
-      />
-    </motion.div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
-   Stat Counter Card
-───────────────────────────────────────────────────────────── */
-function StatCard({
-  value,
-  label,
-  icon,
-}: {
-  value: string;
-  label: string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <motion.div
-      className="flex flex-col items-center gap-1 p-4 rounded-2xl bg-background/30 backdrop-blur-md border border-white/10"
-      whileHover={{ scale: 1.06, backgroundColor: "rgba(255,255,255,0.07)" }}
-      transition={{ type: "spring", stiffness: 300 }}
-    >
-      <div className="text-violet-400/80 mb-0.5">{icon}</div>
-      <span className="font-display text-2xl font-bold">{value}</span>
-      <span className="text-xs text-muted-foreground text-center leading-tight">
-        {label}
-      </span>
-    </motion.div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
-   Animated Success Card (right panel mockup)
-───────────────────────────────────────────────────────────── */
-const successStories = [
-  {
-    initials: "JD",
-    name: "Jane Doe",
-    role: "Product Designer",
-    company: "Visionary Co.",
-    gradient: "from-pink-500 to-rose-600",
-    tag: "Hired in 3 days",
-  },
-  {
-    initials: "MK",
-    name: "Marcus Kim",
-    role: "Senior Engineer",
-    company: "NovaTech",
-    gradient: "from-blue-500 to-indigo-600",
-    tag: "2x salary increase",
-  },
-  {
-    initials: "SR",
-    name: "Sara Reyes",
-    role: "Data Scientist",
-    company: "Pulse Analytics",
-    gradient: "from-emerald-500 to-teal-600",
-    tag: "Dream job found",
-  },
+const liveActivity = [
+  { who: "Priya S.", action: "joined as Senior PM at", co: "Stripe", c: "from-pink-500 to-rose-500" },
+  { who: "Marcus K.", action: "got hired at", co: "Linear", c: "from-blue-500 to-indigo-500" },
+  { who: "Aiko T.", action: "interviewed with", co: "Figma", c: "from-emerald-500 to-teal-500" },
+  { who: "David R.", action: "received offer from", co: "Vercel", c: "from-amber-500 to-orange-500" },
+  { who: "Lena M.", action: "matched with", co: "Notion", c: "from-violet-500 to-purple-500" },
 ];
 
-function RotatingSuccessCard() {
-  const [index, setIndex] = useState(0);
-
+function LiveTicker() {
+  const [i, setI] = useState(0);
   useEffect(() => {
-    const timer = setInterval(
-      () => setIndex((i) => (i + 1) % successStories.length),
-      3500
-    );
-    return () => clearInterval(timer);
+    const t = setInterval(() => setI((p) => (p + 1) % liveActivity.length), 2800);
+    return () => clearInterval(t);
   }, []);
 
-  const story = successStories[index];
-
   return (
-    <div className="relative h-[120px]">
-      <AnimatePresence mode="wait">
+    <div className="relative h-14 overflow-hidden">
+      <AnimatePresence mode="popLayout">
         <motion.div
-          key={index}
-          className="absolute inset-0 rounded-2xl bg-background/40 backdrop-blur-xl border border-white/10 p-5 shadow-2xl overflow-hidden"
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -20, scale: 0.95 }}
-          transition={{ duration: 0.5, ease: "easeInOut" }}
+          key={i}
+          initial={{ y: 40, opacity: 0, filter: "blur(8px)" }}
+          animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
+          exit={{ y: -40, opacity: 0, filter: "blur(8px)" }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="absolute inset-0 flex items-center gap-3"
         >
-          {/* Subtle inner gradient */}
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
-          <div className="flex items-center gap-4">
+          <div className="relative flex-shrink-0">
             <div
-              className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${story.gradient} flex items-center justify-center shadow-lg flex-shrink-0`}
+              className={`h-9 w-9 rounded-full bg-gradient-to-br ${liveActivity[i].c} flex items-center justify-center text-[11px] font-bold text-white`}
             >
-              <span className="font-bold text-white text-sm">{story.initials}</span>
+              {liveActivity[i].who[0]}
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-sm">{story.name}</div>
-              <div className="text-xs text-muted-foreground">
-                {story.role} · {story.company}
-              </div>
-            </div>
-            <motion.div
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex-shrink-0"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.3 }}
-            >
-              <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-              <span className="text-xs font-semibold text-emerald-500 whitespace-nowrap">
-                {story.tag}
-              </span>
-            </motion.div>
+            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-background" />
           </div>
-          {/* Skeleton lines */}
-          <div className="flex gap-2 mt-4">
-            {[100, 75, 55].map((w, i) => (
-              <motion.div
-                key={i}
-                className="h-1.5 rounded-full bg-muted/50"
-                style={{ width: `${w}px` }}
-                animate={{ opacity: [0.4, 0.8, 0.4] }}
-                transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}
-              />
-            ))}
+          <div className="text-sm leading-tight">
+            <span className="font-semibold text-foreground">{liveActivity[i].who}</span>{" "}
+            <span className="text-muted-foreground">{liveActivity[i].action}</span>{" "}
+            <span className="font-semibold text-foreground">{liveActivity[i].co}</span>
+            <div className="text-[10px] text-emerald-500 font-semibold tracking-wide uppercase mt-0.5 flex items-center gap-1">
+              <span className="inline-block w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+              Live · just now
+            </div>
           </div>
         </motion.div>
       </AnimatePresence>
-
-      {/* Dot indicators */}
-      <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5">
-        {successStories.map((_, i) => (
-          <motion.div
-            key={i}
-            className="rounded-full bg-muted-foreground/30"
-            animate={{
-              width: i === index ? 20 : 6,
-              backgroundColor:
-                i === index ? "hsl(var(--primary))" : "hsl(var(--muted-foreground)/0.3)",
-            }}
-            style={{ height: 6 }}
-            transition={{ duration: 0.3 }}
-          />
-        ))}
-      </div>
     </div>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Main Login Component
+   Marquee — infinite scrolling company names
 ───────────────────────────────────────────────────────────── */
+function CompanyMarquee() {
+  const items = ["Stripe", "Linear", "Figma", "Vercel", "Notion", "Anthropic", "OpenAI", "Shopify"];
+  return (
+    <div className="relative overflow-hidden mask-fade-x py-1">
+      <motion.div
+        className="flex gap-8 whitespace-nowrap"
+        animate={{ x: ["0%", "-50%"] }}
+        transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+      >
+        {[...items, ...items, ...items].map((name, i) => (
+          <span
+            key={i}
+            className="font-display text-lg font-semibold text-muted-foreground/50 tracking-tight"
+          >
+            {name}
+          </span>
+        ))}
+      </motion.div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Hero Visual — animated layered card stack
+───────────────────────────────────────────────────────────── */
+function HeroCardStack() {
+  return (
+    <TiltCard className="relative w-full h-[420px]">
+      {/* Back card */}
+      <motion.div
+        className="absolute top-6 right-0 w-[78%] h-full rounded-3xl bg-gradient-to-br from-violet-500/20 to-indigo-500/10 border border-border dark:border-white/10 backdrop-blur-xl"
+        animate={{ y: [0, -8, 0] }}
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+      />
+      {/* Middle card */}
+      <motion.div
+        className="absolute top-3 right-6 w-[85%] h-[95%] rounded-3xl bg-gradient-to-br from-cyan-500/10 to-violet-500/10 border border-border dark:border-white/15 backdrop-blur-xl"
+        animate={{ y: [0, -4, 0] }}
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
+      />
+
+      {/* Front card */}
+      <motion.div
+        className="absolute top-0 left-0 w-[88%] h-[90%] rounded-3xl bg-background/60 border border-border dark:border-white/20 backdrop-blur-2xl shadow-2xl shadow-foreground/5 dark:shadow-black/40 overflow-hidden"
+        animate={{ y: [0, -6, 0] }}
+        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+      >
+        {/* Top bar */}
+        <div className="flex items-center gap-1.5 px-4 py-3 border-b border-border dark:border-white/5">
+          <div className="w-2.5 h-2.5 rounded-full bg-rose-400/70" />
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-400/70" />
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400/70" />
+          <div className="ml-3 flex-1 h-5 rounded bg-muted/50 dark:bg-white/5 px-2 flex items-center">
+            <span className="text-[10px] text-muted-foreground font-mono">
+              hirehub.app/dashboard
+            </span>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                Match score
+              </div>
+              <div className="font-display text-3xl font-bold bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">
+                98%
+              </div>
+            </div>
+            <motion.div
+              className="h-12 w-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center"
+              animate={{ rotate: [0, 8, -8, 0] }}
+              transition={{ duration: 4, repeat: Infinity }}
+            >
+              <Rocket className="h-6 w-6 text-white" />
+            </motion.div>
+          </div>
+
+          {/* Job rows */}
+          {[
+            { co: "Linear", role: "Senior Frontend Engineer", pct: 96, c: "from-indigo-500 to-violet-500" },
+            { co: "Figma", role: "Staff Product Designer", pct: 91, c: "from-pink-500 to-rose-500" },
+            { co: "Vercel", role: "Platform Engineer", pct: 88, c: "from-cyan-500 to-blue-500" },
+          ].map((job, i) => (
+            <motion.div
+              key={i}
+              className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 dark:bg-white/[0.03] border border-border dark:border-white/5"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.5 + i * 0.15 }}
+            >
+              <div className={`h-9 w-9 rounded-lg bg-gradient-to-br ${job.c} flex items-center justify-center text-white text-xs font-bold`}>
+                {job.co[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold truncate">{job.role}</div>
+                <div className="text-[11px] text-muted-foreground">{job.co} · Remote</div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-bold text-emerald-400">{job.pct}%</div>
+                <div className="text-[9px] uppercase tracking-wider text-muted-foreground">match</div>
+              </div>
+            </motion.div>
+          ))}
+
+          {/* Progress bar */}
+          <div className="pt-1">
+            <div className="flex justify-between text-[10px] text-muted-foreground mb-1.5">
+              <span>Profile strength</span>
+              <span className="text-emerald-400 font-semibold">Strong</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-muted dark:bg-white/5 overflow-hidden">
+              <motion.div
+                className="h-full bg-gradient-to-r from-primary via-violet-400 to-emerald-400 rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: "85%" }}
+                transition={{ duration: 1.5, delay: 1, ease: "easeOut" }}
+              />
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Floating notification chip */}
+      <motion.div
+        className="absolute -bottom-4 -right-2 px-3.5 py-2.5 rounded-2xl bg-card/80 dark:bg-background/80 backdrop-blur-xl border border-border dark:border-white/15 shadow-xl flex items-center gap-2.5"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.2 }}
+      >
+        <motion.div
+          animate={{ scale: [1, 1.2, 1] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+          className="h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center"
+        >
+          <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+        </motion.div>
+        <div>
+          <div className="text-xs font-semibold">New offer received</div>
+          <div className="text-[10px] text-muted-foreground">$185k base · Stripe</div>
+        </div>
+      </motion.div>
+
+      {/* Floating stat badge */}
+      <motion.div
+        className="absolute top-8 -left-4 px-3 py-2 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-xl shadow-violet-500/30"
+        initial={{ opacity: 0, x: -20, rotate: -10 }}
+        animate={{ opacity: 1, x: 0, rotate: -6 }}
+        transition={{ delay: 0.8 }}
+      >
+        <div className="flex items-center gap-2">
+          <TrendingUp className="h-4 w-4" />
+          <div>
+            <div className="text-[9px] uppercase tracking-widest opacity-80">This week</div>
+            <div className="text-xs font-bold">+12 matches</div>
+          </div>
+        </div>
+      </motion.div>
+    </TiltCard>
+  );
+}
+
+/* ═════════════════════════════════════════════════════════════
+   MAIN COMPONENT
+═════════════════════════════════════════════════════════════ */
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activeField, setActiveField] = useState<string | null>(null);
+  const [capsLock, setCapsLock] = useState(false);
   const { signIn, signInWithGoogle, role, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Redirect based on role
   useEffect(() => {
     if (user && role) {
-      if (role === "admin") {
-        navigate("/admin/dashboard");
-      } else if (role === "recruiter") {
-        navigate("/recruiter/dashboard");
-      } else {
-        navigate("/seeker/dashboard");
-      }
+      if (role === "admin") navigate("/admin/dashboard");
+      else if (role === "recruiter") navigate("/recruiter/dashboard");
+      else navigate("/seeker/dashboard");
     }
   }, [user, role, navigate]);
 
-  // Cursor tracking
-  const cursorX = useMotionValue(0);
-  const cursorY = useMotionValue(0);
-  const smoothX = useSpring(cursorX, { stiffness: 50, damping: 20 });
-  const smoothY = useSpring(cursorY, { stiffness: 50, damping: 20 });
-
-  useEffect(() => {
-    const move = (e: MouseEvent) => {
-      cursorX.set(e.clientX);
-      cursorY.set(e.clientY);
-    };
-    window.addEventListener("mousemove", move);
-    return () => window.removeEventListener("mousemove", move);
+  // Time-based greeting
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    if (h < 5) return "Burning the midnight oil";
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    if (h < 21) return "Good evening";
+    return "Working late";
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -382,10 +453,9 @@ export default function Login() {
     try {
       await signIn(email, password);
       toast({ title: "Welcome back!" });
-      // Redirect handled by useEffect above when role loads
     } catch (err: any) {
       toast({
-        title: "Error",
+        title: "Sign-in failed",
         description: err.message,
         variant: "destructive",
       });
@@ -394,561 +464,449 @@ export default function Login() {
     }
   };
 
-  const features = [
-    {
-      icon: <Zap className="h-4 w-4" />,
-      color: "from-amber-500 to-orange-500",
-      glow: "shadow-amber-500/30",
-      text: "Instant job matching powered by AI",
-    },
-    {
-      icon: <Building2 className="h-4 w-4" />,
-      color: "from-violet-500 to-purple-500",
-      glow: "shadow-violet-500/30",
-      text: "10,000+ verified companies hiring now",
-    },
-    {
-      icon: <TrendingUp className="h-4 w-4" />,
-      color: "from-emerald-500 to-teal-500",
-      glow: "shadow-emerald-500/30",
-      text: "92% of users land interviews within 2 weeks",
-    },
-  ];
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const passwordStrong = password.length >= 6;
 
   return (
-    <div
-      className="flex min-h-screen bg-background relative overflow-hidden"
-      onMouseMove={(e) => {
-        cursorX.set(e.clientX);
-        cursorY.set(e.clientY);
-      }}
-    >
-      {/* ── Cursor Glow ── */}
-      <motion.div
-        className="fixed w-[600px] h-[600px] rounded-full pointer-events-none z-0"
-        style={{
-          background:
-            "radial-gradient(circle, hsl(var(--primary)/0.06) 0%, transparent 70%)",
-          x: useTransform(smoothX, (v) => v - 300),
-          y: useTransform(smoothY, (v) => v - 300),
-        }}
-      />
-
-      {/* ── Ambient Orbs ── */}
-      <motion.div
-        className="absolute top-[-200px] left-[-100px] w-[700px] h-[700px] rounded-full pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(circle, hsl(var(--primary)/0.07) 0%, transparent 70%)",
-        }}
-        animate={{ scale: [1, 1.12, 1], rotate: [0, 15, 0] }}
-        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute bottom-[-200px] right-[-100px] w-[600px] h-[600px] rounded-full pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%)",
-        }}
-        animate={{ scale: [1, 1.15, 1], rotate: [0, -12, 0] }}
-        transition={{
-          duration: 10,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 2,
-        }}
-      />
-
-      {/* ── Particles ── */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-        {[...Array(18)].map((_, i) => (
-          <Particle key={i} index={i} />
-        ))}
-      </div>
+    <div className="relative flex min-h-screen bg-background text-foreground overflow-hidden">
+      <Aurora />
+      <DotGrid />
+      <NoiseOverlay />
 
       {/* ════════════════════════════════════════
-          LEFT PANEL — Form
+          LEFT — Visual / Brand Panel
       ════════════════════════════════════════ */}
-      <div className="w-full lg:w-[52%] flex items-center justify-center p-6 lg:p-12 relative z-10">
-        <motion.div
-          className="w-full max-w-[420px] space-y-8"
-          initial={{ opacity: 0, x: -30 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.7, ease: "easeOut" }}
-        >
-          {/* Logo */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-          >
+      <div className="hidden lg:flex w-[55%] relative items-center justify-center p-14 z-10">
+        <div className="relative w-full max-w-[560px] space-y-10">
+          {/* Logo + status */}
+          <div className="flex items-center justify-between">
             <Link to="/" className="inline-flex items-center gap-3 group">
-              <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary via-primary to-violet-600 shadow-lg shadow-primary/30 group-hover:shadow-primary/50 transition-all duration-300 group-hover:scale-110 overflow-hidden">
-                {/* Shimmer sweep */}
+              <motion.div
+                whileHover={{ rotate: -8, scale: 1.08 }}
+                className="relative h-12 w-12 rounded-2xl bg-gradient-to-br from-primary via-violet-500 to-indigo-600 shadow-lg shadow-primary/40 flex items-center justify-center overflow-hidden"
+              >
                 <motion.div
                   className="absolute inset-0 bg-white/20"
                   animate={{ x: ["-100%", "200%"] }}
-                  transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                  transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 3 }}
                   style={{ skewX: "-20deg" }}
                 />
                 <Briefcase className="h-5 w-5 text-white relative z-10" />
+              </motion.div>
+              <span className="font-display text-2xl font-bold tracking-tight">
+                Hire<span className="bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent">Hub</span>
+              </span>
+            </Link>
+
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 dark:bg-white/[0.04] border border-border dark:border-white/10 backdrop-blur-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <span className="text-[11px] font-medium text-muted-foreground">
+                All systems operational
+              </span>
+            </div>
+          </div>
+
+          {/* Headline */}
+          <div className="space-y-4">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/30 text-violet-300"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span className="text-[11px] font-bold uppercase tracking-[0.15em]">
+                AI-Powered Career Platform
+              </span>
+            </motion.div>
+
+            <h1 className="font-display text-[clamp(2.5rem,4vw,3.75rem)] font-black leading-[0.95] tracking-tight">
+              Where careers
+              <br />
+              <span className="relative inline-block">
+                <span className="bg-gradient-to-r from-primary via-violet-400 to-cyan-400 bg-clip-text text-transparent">
+                  ignite.
+                </span>
+                <motion.svg
+                  className="absolute -bottom-2 left-0 w-full"
+                  viewBox="0 0 300 12"
+                  initial={{ pathLength: 0 }}
+                  animate={{ pathLength: 1 }}
+                  transition={{ duration: 1.5, delay: 0.6, ease: "easeOut" }}
+                >
+                  <motion.path
+                    d="M2 8 Q 75 2, 150 6 T 298 4"
+                    fill="none"
+                    stroke="url(#g1)"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 1.5, delay: 0.6 }}
+                  />
+                  <defs>
+                    <linearGradient id="g1" x1="0" x2="1">
+                      <stop offset="0%" stopColor="#6366f1" />
+                      <stop offset="50%" stopColor="#a855f7" />
+                      <stop offset="100%" stopColor="#06b6d4" />
+                    </linearGradient>
+                  </defs>
+                </motion.svg>
+              </span>
+            </h1>
+
+            <p className="text-base text-muted-foreground leading-relaxed max-w-md">
+              Match with elite companies in seconds. Land interviews in days.
+              Built for the next generation of ambitious talent.
+            </p>
+          </div>
+
+          {/* Hero card stack */}
+          <HeroCardStack />
+
+          {/* Live ticker */}
+          <div className="space-y-3 pt-4">
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] font-semibold text-muted-foreground">
+              <Globe2 className="h-3.5 w-3.5" />
+              Live activity
+            </div>
+            <LiveTicker />
+          </div>
+
+          {/* Companies marquee */}
+          <div className="pt-2">
+            <div className="text-[10px] uppercase tracking-[0.2em] font-semibold text-muted-foreground mb-3">
+              Trusted by hiring teams at
+            </div>
+            <CompanyMarquee />
+          </div>
+        </div>
+      </div>
+
+      {/* ════════════════════════════════════════
+          RIGHT — Form Panel (glass card)
+      ════════════════════════════════════════ */}
+      <div className="w-full lg:w-[45%] flex items-center justify-center p-6 lg:p-10 relative z-10">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="relative w-full max-w-[440px]"
+        >
+          {/* Animated gradient border ring */}
+          <div className="absolute -inset-px rounded-3xl bg-gradient-to-br from-primary/20 via-border to-primary/20 opacity-60" />
+
+          <div className="relative rounded-3xl bg-card/80 dark:bg-[#0d0d18]/80 backdrop-blur-2xl border border-border dark:border-white/10 p-8 lg:p-10 shadow-2xl shadow-foreground/5 dark:shadow-black/50 space-y-7 overflow-hidden">
+            {/* Decorative top glow */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-px bg-gradient-to-r from-transparent via-violet-400/60 to-transparent" />
+            <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-72 h-40 bg-violet-500/20 blur-3xl rounded-full pointer-events-none" />
+
+            {/* Mobile logo */}
+            <Link to="/" className="lg:hidden inline-flex items-center gap-2.5 mb-2">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center shadow-lg shadow-primary/30">
+                <Briefcase className="h-4 w-4 text-white" />
               </div>
-              <span className="font-display text-xl font-bold tracking-tight">
+              <span className="font-display text-xl font-bold">
                 Hire<span className="text-primary">Hub</span>
               </span>
             </Link>
-          </motion.div>
 
-          {/* Headline */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 mb-4">
-              <motion.div
-                animate={{ rotate: [0, 15, -15, 0] }}
-                transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-              >
-                <Sparkles className="h-3.5 w-3.5 text-violet-400" />
-              </motion.div>
-              <span className="text-xs font-semibold text-violet-400 tracking-wide uppercase">
-                50,000+ professionals trust us
-              </span>
+            {/* Greeting */}
+            <div className="space-y-2 relative">
+              <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <Command className="h-3 w-3" />
+                {greeting}
+              </div>
+              <h2 className="font-display text-3xl font-bold tracking-tight">
+                Sign in to your account
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Pick up exactly where you left off.
+              </p>
             </div>
 
-            <h1 className="font-display text-3xl md:text-4xl font-bold mb-2 leading-tight">
-              Welcome{" "}
-              <span className="relative">
-                <span className="relative z-10 bg-gradient-to-r from-primary to-violet-500 bg-clip-text text-transparent">
-                  back
-                </span>
-                <motion.span
-                  className="absolute bottom-0 left-0 right-0 h-[3px] rounded-full bg-gradient-to-r from-primary to-violet-500"
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: 1 }}
-                  transition={{ delay: 0.8, duration: 0.6 }}
-                  style={{ originX: 0 }}
-                />
-              </span>
-            </h1>
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              Sign in to pick up right where you left off.
-            </p>
-          </motion.div>
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email */}
-            <motion.div
-              className="space-y-1.5"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <Label htmlFor="email" className="text-sm font-medium flex items-center gap-2">
-                Email address
-                <AnimatePresence>
-                  {email.includes("@") && (
-                    <motion.span
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0, opacity: 0 }}
-                      className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white"
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        className="w-2.5 h-2.5 stroke-current fill-none stroke-2"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </Label>
-              <GlowInput focused={activeField === "email"} color="violet">
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onFocus={() => setActiveField("email")}
-                  onBlur={() => setActiveField(null)}
-                  placeholder="you@example.com"
-                  className="h-12 bg-muted/40 border-border/60 focus:bg-background transition-all focus-visible:ring-0 focus-visible:border-primary/50"
-                  required
-                />
-              </GlowInput>
-            </motion.div>
-
-            {/* Password */}
-            <motion.div
-              className="space-y-1.5"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.37 }}
-            >
-              <div className="flex items-center justify-between">
-                <Label
-                  htmlFor="password"
-                  className="text-sm font-medium flex items-center gap-2"
-                >
-                  Password
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-4 relative">
+              {/* Email */}
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Mail className="h-3 w-3" />
+                    EMAIL
+                  </span>
                   <AnimatePresence>
-                    {password.length >= 6 && (
+                    {emailValid && (
                       <motion.span
                         initial={{ scale: 0, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0, opacity: 0 }}
-                        className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white"
+                        className="flex items-center gap-1 text-emerald-400 normal-case tracking-normal"
                       >
-                        <svg
-                          viewBox="0 0 24 24"
-                          className="w-2.5 h-2.5 stroke-current fill-none stroke-2"
-                        >
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
+                        <CheckCircle2 className="h-3 w-3" />
+                        <span className="text-[10px] font-medium">Looks good</span>
                       </motion.span>
                     )}
                   </AnimatePresence>
                 </Label>
-                <Link
-                  to="#"
-                  className="text-xs font-medium text-primary hover:underline underline-offset-2 transition-all"
-                >
-                  Forgot password?
-                </Link>
+                <SpotlightField active={activeField === "email"}>
+                  <div className="relative">
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      onFocus={() => setActiveField("email")}
+                      onBlur={() => setActiveField(null)}
+                      placeholder="you@company.com"
+                      className="h-12 bg-muted/30 dark:bg-white/[0.03] border-border dark:border-white/10 hover:border-primary/30 dark:hover:border-white/20 focus:border-violet-400/50 focus-visible:ring-0 transition-all rounded-xl pl-4"
+                      required
+                    />
+                  </div>
+                </SpotlightField>
               </div>
-              <GlowInput focused={activeField === "password"} color="violet">
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    onFocus={() => setActiveField("password")}
-                    onBlur={() => setActiveField(null)}
-                    placeholder="••••••••"
-                    className="h-12 bg-muted/40 border-border/60 focus:bg-background transition-all focus-visible:ring-0 focus-visible:border-primary/50 pr-10"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <AnimatePresence mode="wait">
-                      {showPassword ? (
-                        <motion.div
-                          key="off"
-                          initial={{ rotate: -90, opacity: 0 }}
-                          animate={{ rotate: 0, opacity: 1 }}
-                          exit={{ rotate: 90, opacity: 0 }}
-                          transition={{ duration: 0.15 }}
+
+              {/* Password */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password" className="text-xs font-semibold text-muted-foreground flex items-center gap-2">
+                    <Lock className="h-3 w-3" />
+                    PASSWORD
+                    <AnimatePresence>
+                      {capsLock && activeField === "password" && (
+                        <motion.span
+                          initial={{ opacity: 0, x: -5 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -5 }}
+                          className="text-[10px] font-medium text-amber-400 normal-case tracking-normal"
                         >
-                          <EyeOff className="h-4 w-4" />
-                        </motion.div>
-                      ) : (
-                        <motion.div
-                          key="on"
-                          initial={{ rotate: 90, opacity: 0 }}
-                          animate={{ rotate: 0, opacity: 1 }}
-                          exit={{ rotate: -90, opacity: 0 }}
-                          transition={{ duration: 0.15 }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </motion.div>
+                          ⚠ Caps Lock is on
+                        </motion.span>
                       )}
                     </AnimatePresence>
-                  </button>
+                  </Label>
+                  <Link
+                    to="#"
+                    className="text-[11px] font-medium text-violet-300 hover:text-violet-200 transition-colors"
+                  >
+                    Forgot?
+                  </Link>
                 </div>
-              </GlowInput>
-            </motion.div>
+                <SpotlightField active={activeField === "password"}>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onKeyUp={(e) => setCapsLock(e.getModifierState("CapsLock"))}
+                      onFocus={() => setActiveField("password")}
+                      onBlur={() => setActiveField(null)}
+                      placeholder="Enter your password"
+                      className="h-12 bg-muted/30 dark:bg-white/[0.03] border-border dark:border-white/10 hover:border-primary/30 dark:hover:border-white/20 focus:border-violet-400/50 focus-visible:ring-0 transition-all rounded-xl pl-4 pr-11"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all"
+                    >
+                      <AnimatePresence mode="wait">
+                        {showPassword ? (
+                          <motion.div
+                            key="off"
+                            initial={{ rotate: -90, opacity: 0 }}
+                            animate={{ rotate: 0, opacity: 1 }}
+                            exit={{ rotate: 90, opacity: 0 }}
+                            transition={{ duration: 0.15 }}
+                          >
+                            <EyeOff className="h-4 w-4" />
+                          </motion.div>
+                        ) : (
+                          <motion.div
+                            key="on"
+                            initial={{ rotate: 90, opacity: 0 }}
+                            animate={{ rotate: 0, opacity: 1 }}
+                            exit={{ rotate: -90, opacity: 0 }}
+                            transition={{ duration: 0.15 }}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </button>
+                  </div>
+                </SpotlightField>
 
-            {/* Submit */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.44 }}
-              className="pt-1"
-            >
-              <MagneticButton className="w-full">
-                <Button
-                  type="submit"
-                  className="w-full h-12 text-base font-semibold relative overflow-hidden group bg-gradient-to-r from-primary via-primary to-violet-600 border-0 shadow-lg shadow-primary/25 !hover:shadow-primary/45 !hover:shadow-xl hover:opacity-90 active:scale-[0.98] transition-all duration-300 !text-white"
-                  disabled={loading}
-                >
-                  {/* Shimmer */}
-                  <motion.div
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent"
-                    animate={{ x: ["-200%", "200%"] }}
-                    transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 1 }}
-                    style={{ skewX: "-20deg" }}
-                  />
+                {/* Password strength bar */}
+                <AnimatePresence>
+                  {password.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="flex gap-1 pt-1"
+                    >
+                      {[0, 1, 2, 3].map((bar) => {
+                        const filled =
+                          (password.length >= 4 && bar === 0) ||
+                          (password.length >= 6 && bar === 1) ||
+                          (password.length >= 9 && bar === 2) ||
+                          (password.length >= 12 && bar === 3);
+                        const colors = [
+                          "bg-rose-500",
+                          "bg-amber-500",
+                          "bg-yellow-400",
+                          "bg-emerald-500",
+                        ];
+                        return (
+                          <motion.div
+                            key={bar}
+                            className={`h-1 flex-1 rounded-full ${
+                              filled ? colors[bar] : "bg-muted dark:bg-white/10"
+                            }`}
+                            initial={{ scaleX: 0 }}
+                            animate={{ scaleX: 1 }}
+                            transition={{ delay: bar * 0.05 }}
+                          />
+                        );
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Submit */}
+              <motion.button
+                type="submit"
+                disabled={loading}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+                className="relative w-full h-12 rounded-xl font-semibold text-white overflow-hidden group disabled:opacity-70 disabled:cursor-not-allowed mt-2"
+              >
+                {/* Animated gradient bg */}
+                <motion.div
+                  className="absolute inset-0"
+                  style={{
+                    background:
+                      "linear-gradient(110deg, #6366f1 0%, #a855f7 35%, #06b6d4 70%, #6366f1 100%)",
+                    backgroundSize: "200% 100%",
+                  }}
+                  animate={{ backgroundPosition: ["0% 0%", "100% 0%"] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                />
+                {/* Shine */}
+                <motion.div
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                  animate={{ x: ["-200%", "200%"] }}
+                  transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 1.5 }}
+                  style={{ skewX: "-20deg" }}
+                />
+                {/* Glow */}
+                <div className="absolute inset-0 rounded-xl shadow-[0_0_30px_rgba(168,85,247,0.45)] opacity-70 group-hover:opacity-100 transition-opacity" />
+
+                <span className="relative z-10 flex items-center justify-center gap-2">
                   <AnimatePresence mode="wait">
                     {loading ? (
-                      <motion.div
-                        key="loading"
-                        className="flex items-center gap-2 relative z-10"
-                        initial={{ opacity: 0, y: 10 }}
+                      <motion.span
+                        key="l"
+                        initial={{ opacity: 0, y: 5 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
+                        exit={{ opacity: 0, y: -5 }}
+                        className="flex items-center gap-2"
                       >
-                        <motion.div
-                          className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                        <motion.span
+                          className="block w-4 h-4 border-2 border-white/40 border-t-white rounded-full"
                           animate={{ rotate: 360 }}
-                          transition={{
-                            duration: 0.8,
-                            repeat: Infinity,
-                            ease: "linear",
-                          }}
+                          transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
                         />
-                        Signing in...
-                      </motion.div>
+                        Authenticating
+                      </motion.span>
                     ) : (
                       <motion.span
-                        key="idle"
-                        className="flex items-center gap-2 relative z-10"
-                        initial={{ opacity: 0, y: 10 }}
+                        key="i"
+                        initial={{ opacity: 0, y: 5 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
+                        exit={{ opacity: 0, y: -5 }}
+                        className="flex items-center gap-2"
                       >
-                        Sign In
-                        <motion.div
+                        Sign in securely
+                        <motion.span
                           animate={{ x: [0, 3, 0] }}
-                          transition={{ duration: 1.5, repeat: Infinity }}
+                          transition={{ duration: 1.4, repeat: Infinity }}
                         >
                           <ArrowRight className="h-4 w-4" />
-                        </motion.div>
+                        </motion.span>
                       </motion.span>
                     )}
                   </AnimatePresence>
-                </Button>
-              </MagneticButton>
-            </motion.div>
-          </form>
+                </span>
+              </motion.button>
+            </form>
 
-          <div className="relative py-2">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border/40" />
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border dark:border-white/10" />
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-card dark:bg-[#0d0d18] px-3 text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">
+                  or
+                </span>
+              </div>
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
-              </span>
-            </div>
-          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-          >
+            {/* Google */}
             <Button
               type="button"
               variant="outline"
-              className="w-full h-12 bg-background border-border/60 !hover:bg-primary/5 !hover:border-primary/50 transition-all gap-3 font-semibold group relative overflow-hidden"
               onClick={signInWithGoogle}
               disabled={loading}
+              className="w-full h-12 bg-muted/30 dark:bg-white/[0.03] hover:bg-muted/50 dark:hover:bg-white/[0.06] border-border dark:border-white/10 hover:border-primary/30 dark:hover:border-white/20 rounded-xl font-semibold gap-3 transition-all group"
             >
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent"
-                animate={{ x: ["-200%", "200%"] }}
-                transition={{ duration: 3, repeat: Infinity, repeatDelay: 2 }}
-                style={{ skewX: "-20deg" }}
-              />
-              <svg className="h-5 w-5 relative z-10" viewBox="0 0 24 24">
-                <path
-                  d="M22.56 12.25c0 -0.78 -0.07 -1.53 -0.2 -2.25H12v4.26h5.92c-0.26 1.37 -1.04 2.53 -2.21 3.31v2.77h3.57c2.08 -1.92 3.28 -4.74 3.28 -8.09z"
-                  fill="#4285F4"
-                />
-                <path
-                  d="M12 23c2.97 0 5.46 -0.98 7.28 -2.66l -3.57 -2.77c-0.98 0.66 -2.23 1.06 -3.71 1.06-2.86 0 -5.29 -1.93 -6.16 -4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  fill="#34A853"
-                />
-                <path
-                  d="M5.84 14.09c-0.22 -0.66 -0.35 -1.36 -0.35 -2.09s0.13 -1.43 0.35 -2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s0.43 3.45 1.18 4.93l 2.85 -2.22 0.81 -0.62z"
-                  fill="#FBBC05"
-                />
-                <path
-                  d="M12 5.38c1.62 0 3.06 0.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c0.87-2.6 3.3-4.53 6.16-4.53z"
-                  fill="#EA4335"
-                />
+              <svg className="h-4 w-4" viewBox="0 0 24 24">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
               </svg>
-              <span className="relative z-10">Google</span>
+              Continue with Google
+              <ArrowRight className="h-3.5 w-3.5 ml-auto opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
             </Button>
-          </motion.div>
 
-          {/* Feature pills */}
-          <motion.div
-            className="space-y-2.5"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.55 }}
-          >
-            {features.map((f, i) => (
-              <motion.div
-                key={i}
-                className="flex items-center gap-3"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.6 + i * 0.1 }}
-              >
-                <div
-                  className={`flex-shrink-0 h-7 w-7 rounded-lg bg-gradient-to-br ${f.color} shadow-md ${f.glow} flex items-center justify-center text-white`}
+            {/* Footer */}
+            <div className="text-center pt-2 border-t border-border dark:border-white/5">
+              <p className="text-sm text-muted-foreground pt-4">
+                New to HireHub?{" "}
+                <Link
+                  to="/auth/signup"
+                  className="font-semibold bg-gradient-to-r from-primary to-violet-400 bg-clip-text text-transparent hover:underline underline-offset-4"
                 >
-                  {f.icon}
-                </div>
-                <span className="text-xs text-muted-foreground">{f.text}</span>
-              </motion.div>
-            ))}
-          </motion.div>
-
-          {/* Footer */}
-          <motion.p
-            className="text-sm text-muted-foreground pt-3 border-t border-border/40"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.75 }}
-          >
-            Don't have an account?{" "}
-            <Link
-              to="/auth/signup"
-              className="font-semibold text-primary hover:underline underline-offset-2 transition-all"
-            >
-              Create one free
-            </Link>
-          </motion.p>
-        </motion.div>
-      </div>
-
-      {/* ════════════════════════════════════════
-          RIGHT PANEL — Visual / Value Prop
-      ════════════════════════════════════════ */}
-      <div className="hidden lg:flex w-[48%] relative items-center justify-center p-12 overflow-hidden border-l border-border/30">
-        <div className="absolute inset-0 bg-gradient-to-br from-background via-muted/20 to-background" />
-
-        <GridLines />
-
-        {/* Orbiting rings */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <OrbitingRing radius={170} duration={18} color="#8b5cf6" />
-          <OrbitingRing
-            radius={230}
-            duration={26}
-            color="hsl(var(--primary))"
-            dotSize={8}
-            reverse
-          />
-          <OrbitingRing radius={300} duration={36} color="#10b981" dotSize={5} />
-        </div>
-
-        <motion.div
-          className="relative z-10 max-w-[460px] w-full space-y-8"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, delay: 0.3 }}
-        >
-          {/* Badge */}
-          <motion.div
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20"
-            animate={{
-              boxShadow: [
-                "0 0 0 0 rgba(139,92,246,0)",
-                "0 0 0 8px rgba(139,92,246,0.05)",
-                "0 0 0 0 rgba(139,92,246,0)",
-              ],
-            }}
-            transition={{ duration: 3, repeat: Infinity }}
-          >
-            <Sparkles className="h-4 w-4" />
-            <span className="text-sm font-semibold tracking-wide uppercase">
-              Your dashboard awaits
-            </span>
-          </motion.div>
-
-          {/* Headline */}
-          <div>
-            <h2 className="font-display text-4xl leading-[1.15] font-bold mb-3">
-              Hire smarter.{" "}
-              <span className="bg-gradient-to-r from-primary via-violet-400 to-purple-400 bg-clip-text text-transparent">
-                Get hired faster.
-              </span>
-            </h2>
-            <p className="text-muted-foreground leading-relaxed">
-              The intelligent platform connecting ambitious talent with
-              forward-thinking companies.
-            </p>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-3">
-            <StatCard
-              value="50K+"
-              label="Active Users"
-              icon={<Users className="h-4 w-4" />}
-            />
-            <StatCard
-              value="4.9★"
-              label="User Rating"
-              icon={<Star className="h-4 w-4" />}
-            />
-            <StatCard
-              value="10K+"
-              label="Companies"
-              icon={<Building2 className="h-4 w-4" />}
-            />
-          </div>
-
-          {/* Rotating success card */}
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4">
-              Recent success stories
-            </p>
-            <RotatingSuccessCard />
-          </div>
-
-          {/* Social proof avatars */}
-          <motion.div
-            className="flex items-center gap-3 p-4 rounded-2xl bg-background/20 backdrop-blur-sm border border-white/8 mt-10"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.9 }}
-          >
-            <div className="flex -space-x-2.5">
-              {[
-                "bg-gradient-to-br from-pink-400 to-rose-600",
-                "bg-gradient-to-br from-blue-400 to-indigo-600",
-                "bg-gradient-to-br from-amber-400 to-orange-600",
-                "bg-gradient-to-br from-emerald-400 to-teal-600",
-              ].map((grad, i) => (
-                <motion.div
-                  key={i}
-                  className={`w-8 h-8 rounded-full ${grad} border-2 border-background flex items-center justify-center text-white text-xs font-bold`}
-                  initial={{ scale: 0, x: -10 }}
-                  animate={{ scale: 1, x: 0 }}
-                  transition={{ delay: 1 + i * 0.1, type: "spring" }}
-                >
-                  {["A", "B", "C", "D"][i]}
-                </motion.div>
-              ))}
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-foreground">
-                Joined this week
+                  Create your account →
+                </Link>
               </p>
-              <p className="text-xs text-muted-foreground">+2,400 new members</p>
+              <div className="flex items-center justify-center gap-4 mt-3 text-[10px] text-muted-foreground/70">
+                <span className="flex items-center gap-1">
+                  <Lock className="h-2.5 w-2.5" />
+                  256-bit encrypted
+                </span>
+                <span>·</span>
+                <span>SOC 2 Type II</span>
+                <span>·</span>
+                <span>GDPR ready</span>
+              </div>
             </div>
-            <div className="ml-auto">
-              <motion.div
-                className="w-2 h-2 rounded-full bg-emerald-500"
-                animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-              />
-            </div>
-          </motion.div>
+          </div>
         </motion.div>
       </div>
+
+      {/* Add to your global CSS if not present:
+          .mask-fade-x {
+            mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+          }
+      */}
     </div>
   );
 }

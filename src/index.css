@@ -171,6 +171,10 @@
     transform: translateY(-6px);
     box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15), 0 0 0 1px hsl(var(--primary) / 0.15);
   }
+  .mask-fade-x {
+    mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  }
 }
 
 /* ── Keyframes ────────────────────────────────── */
